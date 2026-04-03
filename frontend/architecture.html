@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Architecture — ElderShield</title>
+  <meta name="description" content="5-Layer Defense-in-Depth architecture powering ElderShield's elderly protection system."/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>"/>
+  <style>
+    /* ═══════════  ARCHITECTURE — Casino Pipeline Style  ═══════════ */
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800;900&display=swap');
+
+    /* Typography overrides for this page to match the ultra-bold reference */
+    .arch-casino-wrap {
+      max-width: 1200px;
+      margin: 40px auto 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Pipeline Structure */
+    .ac-pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      padding: 20px 0;
+    }
+
+    .ac-card {
+      flex: 1;
+      border-radius: 24px;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.3s ease;
+      /* Box shadows for pop */
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .ac-card:hover { transform: translateY(-8px); }
+
+    .ac-arrow {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; font-size: 1.5rem; color: #fff; font-weight: 800;
+      opacity: 0.6;
+    }
+
+    /* Card Contents */
+    .ac-num {
+      position: absolute; top: 16px; right: 20px;
+      font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+      font-size: 2.2rem; line-height: 1; opacity: 0.3;
+    }
+    .ac-icon {
+      font-size: 2.8rem; margin-bottom: 20px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+    }
+    .ac-name {
+      font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+      text-transform: uppercase; font-size: 1.25rem; letter-spacing: 0.02em;
+      margin-bottom: 12px; line-height: 1.1;
+    }
+    .ac-desc {
+      font-size: 0.85rem; line-height: 1.6; font-weight: 500;
+      margin-top: auto;
+    }
+
+    /* ── CARD THEMES (Casino Palette) ── */
+    
+    /* Dark Theme */
+    .ac-dark {
+      background: #18191a; color: #fff; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .ac-dark .ac-name { color: #fff; }
+    .ac-dark .ac-desc { color: #aaa; }
+    .ac-dark .ac-num { color: #fff; }
+
+    /* Lime Theme */
+    .ac-lime {
+      background: #ccff23; color: #000; border: 1px solid #a3cc1c;
+      z-index: 2; /* Pop out slightly */
+    }
+    .ac-lime .ac-name { color: #000; }
+    .ac-lime .ac-desc { color: #222; }
+    .ac-lime .ac-num { color: #000; opacity: 0.2; }
+
+    /* Purple Theme */
+    .ac-purple {
+      background: #9d50ff; color: #fff; border: 1px solid #813ed6;
+      z-index: 2;
+    }
+    .ac-purple .ac-name { color: #fff; }
+    .ac-purple .ac-desc { color: rgba(255,255,255,0.9); }
+    .ac-purple .ac-num { color: #fff; }
+
+    /* Bottom Trust Contract Section - Bento Style */
+    .ac-bento {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+      margin-top: 60px;
+    }
+    .ac-bento-card {
+      background: #18191a; border-radius: 24px; padding: 36px 40px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .ac-bento-title {
+      font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+      text-transform: uppercase; font-size: 1.4rem; letter-spacing: 0.05em;
+      margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+    }
+    .ac-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+    .ac-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.9rem; color: #aaa; }
+    .ac-list li span { font-size: 1.2rem; line-height: 1; margin-top:2px; }
+    
+    .ac-can-title { color: #ccff23; }
+    .ac-cannot-title { color: #ff4a4a; }
+
+    @media (max-width: 1024px) {
+      .ac-pipeline { flex-direction: column; }
+      .ac-arrow { width: 100%; height: 40px; transform: rotate(90deg); }
+      .ac-card { min-height: 180px; }
+      .ac-bento { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo"><span class="nav-logo-icon">🛡️</span> ElderShield</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="architecture.html" class="active">Architecture</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="audit.html">Audit Log</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+      <div class="nav-right">
+        <div class="status-pill"><span class="pulse-dot"></span> Live Protection</div>
+        <a href="dashboard.html" class="btn btn-primary btn-sm">Open Dashboard</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header" style="text-align:center; padding-top:40px;">
+        <h1 class="section-title">Defense-in-Depth <span style="color:#ccff23">Pipeline</span></h1>
+        <p class="section-desc" style="margin:0 auto">5 sequential layers of strict governance and AI inference.</p>
+      </div>
+
+      <div class="arch-casino-wrap">
+        
+        <!-- 5-Layer Pipeline -->
+        <div class="ac-pipeline reveal">
+          
+          <!-- L1 -->
+          <div class="ac-card ac-dark">
+            <div class="ac-num">L1</div>
+            <div class="ac-icon">🔍</div>
+            <h3 class="ac-name">OpenClaw Agent</h3>
+            <p class="ac-desc">Background daemon. Seamlessly intercepts SMS, WhatsApp, & Voice streams.</p>
+          </div>
+          
+          <div class="ac-arrow">→</div>
+          
+          <!-- L2 -->
+          <div class="ac-card ac-lime">
+            <div class="ac-num">L2</div>
+            <div class="ac-icon">🧠</div>
+            <h3 class="ac-name">Intent<br/>Analysis</h3>
+            <p class="ac-desc">Dual-LLM (Gemma 2B + GPT-4o) evaluates payload semantics. 94% accuracy.</p>
+          </div>
+          
+          <div class="ac-arrow">→</div>
+          
+          <!-- L3 -->
+          <div class="ac-card ac-dark">
+            <div class="ac-num">L3</div>
+            <div class="ac-icon">🚫</div>
+            <h3 class="ac-name">Quarantine<br/>Engine</h3>
+            <p class="ac-desc">SCAM → Block.<br/>SUSPICIOUS → Hold.<br/>BENIGN → Deliver safely.</p>
+          </div>
+          
+          <div class="ac-arrow">→</div>
+          
+          <!-- L4 -->
+          <div class="ac-card ac-purple">
+            <div class="ac-num">L4</div>
+            <div class="ac-icon">🔐</div>
+            <h3 class="ac-name">ArmorClaw<br/>Governance</h3>
+            <p class="ac-desc">Action scoped verification. Cryptographic signing. Fail-closed.</p>
+          </div>
+
+          <div class="ac-arrow">→</div>
+          
+          <!-- L5 -->
+          <div class="ac-card ac-dark">
+            <div class="ac-num">L5</div>
+            <div class="ac-icon">📊</div>
+            <h3 class="ac-name">Family<br/>Dashboard</h3>
+            <p class="ac-desc">Real-time WebSocket alerts to authorized family members instantly.</p>
+          </div>
+
+        </div>
+
+        <!-- Trust Contract - Bento Style -->
+        <div class="ac-bento reveal">
+           <div class="ac-bento-card">
+              <div class="ac-bento-title ac-can-title">✅ AGENT CAN</div>
+              <ul class="ac-list">
+                <li><span>✅</span> Read incoming messages for content analysis</li>
+                <li><span>✅</span> Classify messages with confidence scores</li>
+                <li><span>✅</span> Quarantine or hold suspicious content</li>
+                <li><span>✅</span> Alert family members via WebSocket push</li>
+                <li><span>✅</span> Display elder-friendly explanations</li>
+              </ul>
+           </div>
+           <div class="ac-bento-card">
+              <div class="ac-bento-title ac-cannot-title">❌ AGENT CANNOT</div>
+              <ul class="ac-list">
+                <li><span>❌</span> Modify messages before quarantine</li>
+                <li><span>❌</span> Exfiltrate user data to external endpoints</li>
+                <li><span>❌</span> Change its own enforcement policies</li>
+                <li><span>❌</span> Perform silent actions without logging</li>
+                <li><span>❌</span> Respond to prompt injection commands</li>
+              </ul>
+           </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">🛡️ ElderShield</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+      </ul>
+    </div>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

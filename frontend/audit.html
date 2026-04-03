@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Audit Log — ElderShield</title>
+  <meta name="description" content="Cryptographically signed, immutable audit trail of every ElderShield action."/>
+  <link rel="stylesheet" href="styles.css"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>"/>
+</head>
+<body>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <nav class="nav" id="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-logo"><span class="nav-logo-icon">🛡️</span> ElderShield</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="audit.html" class="active">Audit Log</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+      <div class="nav-right">
+        <div class="status-pill"><span class="pulse-dot"></span> Live Protection</div>
+        <a href="dashboard.html" class="btn btn-primary btn-sm">Open Dashboard</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page">
+    <div class="container">
+      <div class="page-header">
+        <div class="page-header-row">
+          <div>
+            <h1 class="page-title">🔐 Cryptographic <span class="accent">Audit Log</span></h1>
+            <p class="page-desc">Every action. Every decision. Signed with HMAC-SHA256. SQLite immutable triggers prevent modification or deletion.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span class="badge badge-live"><span class="pulse-dot"></span> Immutable</span>
+            <span style="font-size:0.76rem;color:var(--text-muted)" id="auditCount">8 entries</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title">📋 Audit Log — Append Only</div>
+          <span style="font-size:0.72rem;color:var(--text-muted)">UPDATE/DELETE operations blocked by SQLite triggers</span>
+        </div>
+        <div class="audit-wrap">
+          <table class="audit-table" id="auditTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Message ID</th>
+                <th>Action</th>
+                <th>Confidence</th>
+                <th>Reason</th>
+                <th>HMAC Signature</th>
+                <th>Injection</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody">
+              <!-- JS injects rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Signature Info -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;padding-top:32px" class="reveal">
+        <div class="card" style="border-color:rgba(0,255,136,0.12)">
+          <div class="card-body">
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--accent)">🔐 How Signatures Work</h3>
+            <p style="font-size:0.84rem;color:var(--text-secondary);line-height:1.7;margin-bottom:12px">Each audit entry is signed using HMAC-SHA256 with the ArmorClaw secret key. The payload includes message ID, action, confidence, reason, and timestamp — making it impossible to alter any field without invalidating the signature.</p>
+            <code style="font-family:var(--font-mono);font-size:0.72rem;color:var(--green-400);display:block;padding:12px;background:rgba(0,0,0,0.3);border-radius:8px;word-break:break-all">HMAC-SHA256(key, JSON.stringify({message_id, action, confidence, reason, timestamp}))</code>
+          </div>
+        </div>
+        <div class="card" style="border-color:rgba(239,68,68,0.12)">
+          <div class="card-body">
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--red-400)">🚨 Immutability Guarantee</h3>
+            <p style="font-size:0.84rem;color:var(--text-secondary);line-height:1.7;margin-bottom:12px">SQLite triggers prevent any UPDATE or DELETE operations on the audit table. Once an entry is written, it exists permanently — providing complete accountability.</p>
+            <code style="font-family:var(--font-mono);font-size:0.72rem;color:var(--red-400);display:block;padding:12px;background:rgba(0,0,0,0.3);border-radius:8px">CREATE TRIGGER prevent_audit_update<br/>BEFORE UPDATE ON audit_log<br/>BEGIN SELECT RAISE(ABORT, 'ArmorClaw: audit log is immutable'); END</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">🛡️ ElderShield</div>
+      <div class="footer-mid">Ossome Hacks 3.0 · Claw &amp; Shield Track · ArmorIQ</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="demo.html">Demo</a></li>
+      </ul>
+    </div>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
