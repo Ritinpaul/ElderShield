@@ -1,0 +1,36 @@
+# ══════════════════════════════════════════════════════════════
+# ElderShield — Python Dependencies
+# ══════════════════════════════════════════════════════════════
+
+# Core Backend
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.9
+
+# Async HTTP & WebSocket
+httpx>=0.27.0
+websockets>=12.0
+
+# Database
+aiosqlite>=0.20.0
+
+# AI/ML — OpenAI (GPT-4o + Whisper)
+openai>=1.30.0
+
+# Cryptography (HMAC-SHA256, Ed25519)
+cryptography>=42.0.0
+
+# Testing
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+
+# ── P1: Local ML (uncomment when GPU available) ──
+# transformers>=4.41.0
+# torch>=2.3.0
+# accelerate>=0.31.0
+# peft>=0.11.0
+# bitsandbytes>=0.43.0
+# scipy>=1.13.0
+# numpy>=1.26.0
