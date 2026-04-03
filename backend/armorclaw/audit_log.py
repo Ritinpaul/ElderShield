@@ -24,6 +24,7 @@ This module only performs INSERT and SELECT operations.
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 
 import aiosqlite
@@ -33,6 +34,7 @@ from backend.models.schemas import AuditEntry
 logger = logging.getLogger("eldershield.l4.audit_log")
 
 DB_PATH = "eldershield.db"
+DB_PATH = os.getenv("DB_PATH", "./eldershield.db")
 
 
 async def record(
@@ -43,6 +45,8 @@ async def record(
     signature: str,
     timestamp: str,
     injection_detected: bool = False,
+    source_channel: str | None = None,
+    source_sender: str | None = None,
 ) -> None:
     """
     Write an immutable audit log entry to SQLite.
@@ -56,8 +60,8 @@ async def record(
             await db.execute(
                 """
                 INSERT INTO audit_log
-                  (message_id, action, confidence, reason, signature, timestamp, injection_detected)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    (message_id, action, confidence, reason, signature, timestamp, injection_detected, source_channel, source_sender)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     message_id,
@@ -67,6 +71,8 @@ async def record(
                     signature,
                     timestamp,
                     1 if injection_detected else 0,
+                                        source_channel,
+                                        source_sender,
                 ),
             )
             await db.commit()
@@ -96,7 +102,7 @@ async def get_all(limit: int = 100) -> list[AuditEntry]:
             async with db.execute(
                 """
                 SELECT message_id, action, confidence, reason, signature,
-                       timestamp, injection_detected
+                      timestamp, injection_detected, source_channel, source_sender
                 FROM audit_log
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -114,6 +120,8 @@ async def get_all(limit: int = 100) -> list[AuditEntry]:
                 signature=row["signature"],
                 timestamp=row["timestamp"],
                 injection_detected=bool(row["injection_detected"]),
+                source_channel=row["source_channel"],
+                source_sender=row["source_sender"],
             )
             for row in rows
         ]

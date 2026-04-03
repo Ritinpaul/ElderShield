@@ -68,9 +68,20 @@ class Database:
                     reason             TEXT    NOT NULL,
                     signature          TEXT    NOT NULL,
                     timestamp          TEXT    NOT NULL,
-                    injection_detected BOOLEAN DEFAULT FALSE
+                    injection_detected BOOLEAN DEFAULT FALSE,
+                    source_channel     TEXT,
+                    source_sender      TEXT
                 )
             """)
+
+            # Backward-compatible migration for existing databases
+            async with db.execute("PRAGMA table_info(audit_log)") as cursor:
+                cols = {row[1] for row in await cursor.fetchall()}
+
+            if "source_channel" not in cols:
+                await db.execute("ALTER TABLE audit_log ADD COLUMN source_channel TEXT")
+            if "source_sender" not in cols:
+                await db.execute("ALTER TABLE audit_log ADD COLUMN source_sender TEXT")
 
             # ── Immutability Triggers ─────────────────────────
             # These triggers prevent any UPDATE or DELETE on the
@@ -159,8 +170,8 @@ class Database:
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """INSERT INTO audit_log
-                   (message_id, action, confidence, reason, signature, timestamp, injection_detected)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (message_id, action, confidence, reason, signature, timestamp, injection_detected, source_channel, source_sender)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     entry.message_id,
                     entry.action,
@@ -169,6 +180,8 @@ class Database:
                     entry.signature,
                     entry.timestamp,
                     entry.injection_detected,
+                    getattr(entry, "source_channel", None),
+                    getattr(entry, "source_sender", None),
                 ),
             )
             await db.commit()

@@ -12,6 +12,9 @@ class FamilyAlert:
     """Format for pushing alerts to the family dashboard via WebSocket."""
     alert_type: str        # 'SCAM', 'SUSPICIOUS', 'BENIGN'
     message_id: str
+    channel: str | None
+    sender: str | None
+    action: str            # lowercase action for frontend compatibility
     action_taken: str      # 'QUARANTINE', 'HOLD_FOR_REVIEW', 'DELIVER'
     confidence: float
     reason: str
@@ -32,6 +35,9 @@ def format_alert(action: QuarantineAction) -> str:
     alert = FamilyAlert(
         alert_type=action.family_alert_level or alert_type,
         message_id=action.message_id,
+        channel=action.source_channel,
+        sender=action.source_sender,
+        action=action.action.value,
         action_taken=action.action.value.upper(),
         confidence=action.confidence,
         reason=action.reason,

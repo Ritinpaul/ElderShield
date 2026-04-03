@@ -119,6 +119,14 @@ class QuarantineAction(BaseModel):
         default=None,
         description="HMAC-SHA256 signature from L4 ArmorClaw"
     )
+    source_channel: Optional[str] = Field(
+        default=None,
+        description="Original message channel (whatsapp/sms/email/voice)"
+    )
+    source_sender: Optional[str] = Field(
+        default=None,
+        description="Original sender identifier"
+    )
 
 
 # ── L4: Audit Models ─────────────────────────────────────────
@@ -132,6 +140,8 @@ class AuditEntry(BaseModel):
     signature: str
     timestamp: str
     injection_detected: bool = False
+    source_channel: Optional[str] = None
+    source_sender: Optional[str] = None
 
 
 # ── API Request Models ────────────────────────────────────────

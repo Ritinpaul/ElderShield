@@ -62,7 +62,7 @@ Incoming Message
 | Inter-agent Communication | asyncio.Queue |
 | Real-Time Alerts | WebSockets |
 | Security | HMAC-SHA256, prompt injection detection |
-| Frontend | Vanilla HTML/CSS/JS |
+| Frontend | React + Vite |
 
 ---
 
@@ -169,11 +169,24 @@ Interactive API docs: `http://localhost:8000/docs`
 
 ### Running the Frontend
 
-Open `frontend/index.html` directly in your browser, or serve it with any static server:
+Run the Vite app:
 
 ```bash
-npx serve frontend/
+cd frontend
+npm install
+npm run dev
 ```
+
+Frontend runs at `http://localhost:5173` and proxies `/api` and `/ws` to the backend.
+
+### Running with Docker
+
+```bash
+docker compose up --build
+```
+
+- Frontend: `http://localhost:5173`
+- Backend API (via frontend proxy): `/api/*`
 
 ---
 

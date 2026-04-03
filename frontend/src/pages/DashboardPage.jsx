@@ -1,25 +1,171 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
-import { THREATS, ATTACKS, rndSig } from '../data/constants'
 import '../styles/dashboard.css'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+const emptyStats = {
+  total_intercepted: 0,
+  total_blocked: 0,
+  total_suspicious: 0,
+  total_safe: 0,
+  injection_attempts: 0,
+  avg_confidence: 0,
+}
+
+function buildApiUrl(path) {
+  return `${API_BASE_URL}${path}`
+}
+
+function buildWebSocketUrl(path) {
+  if (API_BASE_URL) {
+    const normalized = API_BASE_URL.replace(/\/$/, '')
+    if (normalized.startsWith('https://')) {
+      return normalized.replace('https://', 'wss://') + path
+    }
+    if (normalized.startsWith('http://')) {
+      return normalized.replace('http://', 'ws://') + path
+    }
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${protocol}://${window.location.host}${path}`
+}
+
+function formatReason(reason) {
+  return (reason || 'unknown risk signal').replace(/_/g, ' ')
+}
+
+function shortSig(signature) {
+  return (signature || 'pending').slice(0, 16)
+}
+
+function actionToFeed(action) {
+  if (action === 'quarantine') {
+    return { dotClass: 'red', tagClass: 'red', tagText: 'SCAM' }
+  }
+  if (action === 'hold_for_review') {
+    return { dotClass: 'amber', tagClass: 'amber', tagText: 'SUSPICIOUS' }
+  }
+  return { dotClass: 'green', tagClass: 'green', tagText: 'BENIGN' }
+}
+
+function formatTimeAgo(timestamp) {
+  const time = new Date(timestamp).getTime()
+  if (!Number.isFinite(time)) return 'just now'
+
+  const diffMs = Date.now() - time
+  const minutes = Math.max(1, Math.floor(diffMs / 60000))
+  if (minutes < 60) return `${minutes} min ago`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hr ago`
+
+  const days = Math.floor(hours / 24)
+  return `${days} day${days > 1 ? 's' : ''} ago`
+}
+
+function toFeedItems(audits) {
+  return audits.slice(0, 8).map((entry) => {
+    const tag = actionToFeed(entry.action)
+    const channel = entry.source_channel ? entry.source_channel.toUpperCase() : 'UNKNOWN'
+    return {
+      dotClass: tag.dotClass,
+      tagClass: tag.tagClass,
+      tagText: tag.tagText,
+      via: channel,
+      time: formatTimeAgo(entry.timestamp),
+      title: formatReason(entry.reason),
+      confidence: `${(Number(entry.confidence || 0) * 100).toFixed(1)}%`,
+      hash: shortSig(entry.signature),
+      isLive: false,
+    }
+  })
+}
+
+function buildTrendSeries(audits, totalIntercepted) {
+  if (!audits.length) return [0, 0, 0, 0, 0, 0]
+
+  const points = audits.slice(0, 14).reverse()
+  const baseline = Math.max(0, totalIntercepted - points.length)
+  return points.map((_, index) => baseline + index + 1)
+}
+
+function computeProtectionScore(stats) {
+  const total = stats.total_intercepted || 0
+  if (!total) return 100
+
+  const detectionRate = (stats.total_blocked + stats.total_suspicious) / total
+  const confidence = Number(stats.avg_confidence || 0)
+  const raw = 60 + detectionRate * 35 + confidence * 5
+  return Math.max(0, Math.min(99, Math.round(raw)))
+}
 
 export default function DashboardPage() {
   const canvasRef = useRef(null)
-  const feedRef = useRef(null)
   const profileRef = useRef(null)
-  const [totalIntercepted, setTotalIntercepted] = useState(142)
-  const [feedItems, setFeedItems] = useState([
-    { dotClass: 'red', tagClass: 'red', tagText: 'SCAM', via: 'WhatsApp', time: '2 min ago', title: 'Deepfake Voice — Grandparent Scam', confidence: '94.0%', hash: '8f4a2c1b9e3d7f0a' },
-    { dotClass: 'red', tagClass: 'red', tagText: 'SCAM', via: 'SMS', time: '8 min ago', title: 'Phishing Link — Bank Impersonation', confidence: '97.0%', hash: 'd4e5f6a7b8c9d0e1' },
-    { dotClass: 'red', tagClass: 'red', tagText: '🚨 SCAM', via: 'WhatsApp', time: '14 min ago', title: 'Prompt Injection Attack Detected', confidence: '100.0%', hash: 'a1b2c3d4e5f6a7b8' },
-    { dotClass: 'amber', tagClass: 'amber', tagText: 'SUSPICIOUS', via: 'Email', time: '21 min ago', title: 'Unverified Sender — Unusual Request', confidence: '82.5%', hash: 'e9c8b7a6f5d4c3b2' },
-  ])
 
-  // Area chart drawing
+  const [stats, setStats] = useState(emptyStats)
+  const [feedItems, setFeedItems] = useState([])
+  const [chartSeries, setChartSeries] = useState([0, 0, 0, 0, 0, 0])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  const totalIntercepted = stats.total_intercepted || 0
+  const blockedPct = totalIntercepted
+    ? ((stats.total_blocked / totalIntercepted) * 100).toFixed(1)
+    : '0.0'
+  const protectionScore = computeProtectionScore(stats)
+
+  const distribution = [
+    { key: 'Blocked', value: stats.total_blocked || 0, className: 'b-hl' },
+    { key: 'Suspicious', value: stats.total_suspicious || 0, className: 'b-warning' },
+    { key: 'Delivered', value: stats.total_safe || 0, className: '' },
+    { key: 'Injection', value: stats.injection_attempts || 0, className: 'b-danger' },
+  ]
+  const maxDistValue = Math.max(1, ...distribution.map((item) => item.value))
+
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const [statsRes, auditsRes] = await Promise.all([
+        fetch(buildApiUrl('/api/stats')),
+        fetch(buildApiUrl('/api/audit-log?limit=80')),
+      ])
+
+      if (!statsRes.ok || !auditsRes.ok) {
+        throw new Error('Unable to load dashboard data')
+      }
+
+      const statsPayload = await statsRes.json()
+      const auditPayload = await auditsRes.json()
+
+      const normalizedStats = {
+        ...emptyStats,
+        ...statsPayload,
+      }
+
+      setStats(normalizedStats)
+      setFeedItems(toFeedItems(auditPayload))
+      setChartSeries(buildTrendSeries(auditPayload, normalizedStats.total_intercepted || 0))
+      setLoadError('')
+    } catch (error) {
+      setLoadError(error.message || 'Unable to load data')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboardData()
+    const interval = setInterval(loadDashboardData, 15000)
+    return () => clearInterval(interval)
+  }, [loadDashboardData])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+
     const ctx = canvas.getContext('2d')
     const dpr = window.devicePixelRatio || 1
 
@@ -27,51 +173,63 @@ export default function DashboardPage() {
       const rect = canvas.parentElement.getBoundingClientRect()
       canvas.width = rect.width * dpr
       canvas.height = rect.height * dpr
-      canvas.style.width = rect.width + 'px'
-      canvas.style.height = rect.height + 'px'
+      canvas.style.width = `${rect.width}px`
+      canvas.style.height = `${rect.height}px`
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
       draw(rect.width, rect.height)
     }
 
     function draw(w, h) {
+      const data = chartSeries
       ctx.clearRect(0, 0, w, h)
-      const data = [28, 42, 35, 65, 48, 72, 55, 90, 68, 105, 82, 130, 95, 142]
+
       const max = Math.max(...data) * 1.15
-      const stepX = w / (data.length - 1)
+      const stepX = w / Math.max(1, data.length - 1)
       const pad = 4
 
       ctx.strokeStyle = 'rgba(255,255,255,0.03)'
       ctx.lineWidth = 1
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 5; i += 1) {
         const y = pad + (h - pad * 2) * (i / 4)
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(w, y)
+        ctx.stroke()
       }
 
       ctx.beginPath()
       data.forEach((d, i) => {
         const x = i * stepX
         const y = h - (d / max) * (h - pad * 2) - pad
-        if (i === 0) ctx.moveTo(x, y)
-        else {
-          const px = (i - 1) * stepX, py = h - (data[i-1] / max) * (h - pad * 2) - pad
+        if (i === 0) {
+          ctx.moveTo(x, y)
+        } else {
+          const px = (i - 1) * stepX
+          const py = h - (data[i - 1] / max) * (h - pad * 2) - pad
           const cx = (px + x) / 2
           ctx.bezierCurveTo(cx, py, cx, y, x, y)
         }
       })
-      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
+      ctx.lineTo(w, h)
+      ctx.lineTo(0, h)
+      ctx.closePath()
+
       const grad = ctx.createLinearGradient(0, 0, 0, h)
       grad.addColorStop(0, 'rgba(0,255,136,0.3)')
       grad.addColorStop(1, 'rgba(0,255,136,0.01)')
-      ctx.fillStyle = grad; ctx.fill()
+      ctx.fillStyle = grad
+      ctx.fill()
 
       ctx.beginPath()
       data.forEach((d, i) => {
         const x = i * stepX
         const y = h - (d / max) * (h - pad * 2) - pad
-        if (i === 0) ctx.moveTo(x, y)
-        else {
-          const px = (i - 1) * stepX, py = h - (data[i-1] / max) * (h - pad * 2) - pad
+        if (i === 0) {
+          ctx.moveTo(x, y)
+        } else {
+          const px = (i - 1) * stepX
+          const py = h - (data[i - 1] / max) * (h - pad * 2) - pad
           const cx = (px + x) / 2
           ctx.bezierCurveTo(cx, py, cx, y, x, y)
         }
@@ -85,78 +243,91 @@ export default function DashboardPage() {
 
       const lastX = (data.length - 1) * stepX
       const lastY = h - (data[data.length - 1] / max) * (h - pad * 2) - pad
-      ctx.beginPath(); ctx.arc(lastX, lastY, 5, 0, Math.PI * 2)
-      ctx.fillStyle = '#fff'; ctx.fill()
-      ctx.beginPath(); ctx.arc(lastX, lastY, 10, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(0,255,136,0.3)'; ctx.fill()
+      ctx.beginPath()
+      ctx.arc(lastX, lastY, 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(lastX, lastY, 10, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(0,255,136,0.3)'
+      ctx.fill()
     }
 
     resize()
     window.addEventListener('resize', resize)
     return () => window.removeEventListener('resize', resize)
-  }, [])
+  }, [chartSeries])
 
-  // WebSocket connection
   useEffect(() => {
     let ws
+
     try {
-      ws = new WebSocket("ws://127.0.0.1:8000/ws/family-alerts")
+      ws = new WebSocket(buildWebSocketUrl('/ws/family-alerts'))
 
       ws.onopen = () => {
-        console.log("✅ WebSocket Connected: Listening for ElderShield Intercepts...")
-        if (profileRef.current) profileRef.current.style.border = "1px solid var(--accent)"
+        if (profileRef.current) profileRef.current.style.border = '1px solid var(--accent)'
       }
 
       ws.onmessage = (event) => {
         const payload = JSON.parse(event.data)
-        console.log("🚨 ALERT RECEIVED:", payload)
-        const isRed = payload.label === 'SCAM'
-        setFeedItems(prev => [{
-          dotClass: isRed ? 'red' : 'amber',
-          tagClass: isRed ? 'red' : 'amber',
-          tagText: payload.label,
-          via: `${payload.channel} (LIVE)`,
-          time: 'Just now',
-          title: payload.reason || 'Threat Detected',
-          confidence: `${(payload.confidence * 100).toFixed(1)}%`,
-          hash: payload.signature || 'pending...',
-          isLive: true,
-        }, ...prev])
-        setTotalIntercepted(prev => prev + 1)
+        const isRed = payload.action === 'quarantine'
+        const isAmber = payload.action === 'hold_for_review'
+
+        setFeedItems((prev) => [
+          {
+            dotClass: isRed ? 'red' : isAmber ? 'amber' : 'green',
+            tagClass: isRed ? 'red' : isAmber ? 'amber' : 'green',
+            tagText: isRed ? 'SCAM' : isAmber ? 'SUSPICIOUS' : 'BENIGN',
+            via: `${payload.channel || 'policy'} (LIVE)`,
+            time: 'Just now',
+            title: formatReason(payload.reason),
+            confidence: `${(Number(payload.confidence || 0) * 100).toFixed(1)}%`,
+            hash: shortSig(payload.signature),
+            isLive: true,
+          },
+          ...prev,
+        ].slice(0, 8))
+
+        setStats((prev) => ({
+          ...prev,
+          total_intercepted: (prev.total_intercepted || 0) + 1,
+          total_blocked: isRed ? (prev.total_blocked || 0) + 1 : (prev.total_blocked || 0),
+          total_suspicious: isAmber ? (prev.total_suspicious || 0) + 1 : (prev.total_suspicious || 0),
+          total_safe: !isRed && !isAmber ? (prev.total_safe || 0) + 1 : (prev.total_safe || 0),
+        }))
       }
 
       ws.onclose = () => {
-        console.log("❌ WebSocket Disconnected")
-        if (profileRef.current) profileRef.current.style.border = "1px solid red"
+        if (profileRef.current) profileRef.current.style.border = '1px solid red'
       }
-    } catch (e) {
-      console.log("WebSocket not available")
+    } catch {
+      // noop
     }
 
-    return () => { if (ws) ws.close() }
+    return () => {
+      if (ws) ws.close()
+    }
   }, [])
 
   const simulateNewThreat = useCallback(async () => {
-    console.log("Simulating threat...")
     const payload = {
-      channel: "whatsapp",
-      sender: "+1234567890",
-      content: "Grandma im in jail, please send money! Don't tell anyone.",
+      channel: 'whatsapp',
+      sender: '+1234567890',
+      content: "Grandma I'm in jail, please send money! Don't tell anyone.",
     }
+
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/intercept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(buildApiUrl('/api/intercept'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        console.log("✅ Threat injected to L1 layer successfully")
-      } else {
-        console.error("❌ Failed to inject threat", await res.text())
+
+      if (!res.ok) {
+        throw new Error('Threat injection failed')
       }
-    } catch (err) {
-      console.error("❌ API Offline - Could not reach /api/intercept", err)
-      alert("Server is offline. Start FastAPI backend on port 8000.")
+    } catch {
+      alert('Server is offline. Start FastAPI backend on port 8000.')
     }
   }, [])
 
@@ -164,7 +335,8 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <Sidebar />
       <main className="main-wrap">
-        {/* Header */}
+        {loadError && <div className="dashboard-error">{loadError}</div>}
+
         <header className="header">
           <div className="search-bar">
             <span>🔍</span> Search threats, messages...
@@ -179,21 +351,19 @@ export default function DashboardPage() {
                 <span className="hp-name">ElderShield</span>
                 <span className="hp-role">@guardian</span>
               </div>
-              <span className="h-icon" style={{fontSize:'0.8rem'}}>▼</span>
+              <span className="h-icon" style={{ fontSize: '0.8rem' }}>▼</span>
             </div>
           </div>
         </header>
 
-        {/* Grid Area */}
         <div className="db-content">
-          {/* 1. Threats Area Chart */}
           <div className="card card-chartmain">
             <div className="cm-header">
               <div>
                 <div className="cm-title">Total Threats Intercepted</div>
                 <div className="cm-val-row">
-                  <div className="cm-val">1,247</div>
-                  <div className="cm-pct">↑ 12.8% <span style={{fontWeight:400,color:'#666'}}>from last month</span></div>
+                  <div className="cm-val">{totalIntercepted.toLocaleString()}</div>
+                  <div className="cm-pct">{blockedPct}% blocked <span style={{ fontWeight: 400, color: '#666' }}>from all intercepted</span></div>
                 </div>
               </div>
               <div className="cm-filters">
@@ -206,103 +376,96 @@ export default function DashboardPage() {
             <div className="chart-area">
               <canvas ref={canvasRef} className="chart-canvas"></canvas>
               <div className="chart-tooltip">
-                <div className="chart-tooltip-date">02 Apr, 2026 ↗</div>
-                <div className="chart-tooltip-val">142 threats</div>
+                <div className="chart-tooltip-date">Realtime Trend</div>
+                <div className="chart-tooltip-val">{totalIntercepted} threats</div>
               </div>
             </div>
             <div className="cm-footer">
-              <div>Average daily rate: <strong style={{color:'#aaa'}}>7.2 threats/day</strong></div>
+              <div>Average confidence: <strong style={{ color: '#aaa' }}>{(Number(stats.avg_confidence || 0) * 100).toFixed(1)}%</strong></div>
               <div className="cm-legend">
-                <div className="cm-leg-item"><div className="c-dot" style={{background:'#444'}}></div> Intercepted</div>
-                <div className="cm-leg-item"><div className="c-dot" style={{background:'var(--accent)'}}></div> Blocked</div>
+                <div className="cm-leg-item"><div className="c-dot" style={{ background: '#444' }}></div> Intercepted</div>
+                <div className="cm-leg-item"><div className="c-dot" style={{ background: 'var(--accent)' }}></div> Blocked</div>
               </div>
             </div>
           </div>
 
-          {/* 2. Protection Status */}
           <div className="card card-protect">
             <div className="cp-top">
-              <span className="card-title-sm" style={{margin:0}}>Protection Status</span>
-              <span style={{fontSize:'1.2rem'}}>🛡️</span>
+              <span className="card-title-sm" style={{ margin: 0 }}>Protection Status</span>
+              <span style={{ fontSize: '1.2rem' }}>🛡️</span>
             </div>
             <div className="cp-shield-visual">
               <span className="cp-shield-emoji">🛡️</span>
             </div>
             <div className="cp-score-row">
-              <div className="cp-score">94</div>
+              <div className="cp-score">{protectionScore}</div>
               <div className="cp-score-label">Protection Score</div>
             </div>
             <div className="cp-actions">
-              <button className="cp-btn ghost">📋 Audit Log</button>
+              <Link to="/audit" className="cp-btn ghost" style={{ textAlign: 'center', textDecoration: 'none' }}>📋 Audit Log</Link>
               <button className="cp-btn primary" onClick={simulateNewThreat}>⚡ Intercept</button>
             </div>
           </div>
 
-          {/* 3. Trusted Promo Banner */}
           <div className="card card-promo">
             <div className="promo-rings"></div>
             <div className="promo-content">
-              <h2 className="promo-title" style={{fontSize:'1.4rem', marginBottom:'8px'}}>Trusted by Families<br/>Worldwide</h2>
-              <p className="promo-desc" style={{marginBottom:'12px'}}>Secure, reliable, and cryptographically guaranteed protection.</p>
-              <ul style={{listStyle:'none', padding:0, margin:'12px 0 20px', display:'flex', flexDirection:'column', gap:'8px'}}>
-                <li style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'0.8rem', color:'#aaa', fontWeight:500}}>
-                  <span style={{background:'rgba(0,255,136,0.1)', color:'var(--accent)', width:'18px', height:'18px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem'}}>✓</span>
+              <h2 className="promo-title" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Trusted by Families<br />Worldwide</h2>
+              <p className="promo-desc" style={{ marginBottom: '12px' }}>Secure, reliable, and cryptographically guaranteed protection.</p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#aaa', fontWeight: 500 }}>
+                  <span style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--accent)', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem' }}>✓</span>
                   24/7 Deepfake Interception
                 </li>
-                <li style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'0.8rem', color:'#aaa', fontWeight:500}}>
-                  <span style={{background:'rgba(0,255,136,0.1)', color:'var(--accent)', width:'18px', height:'18px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem'}}>✓</span>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#aaa', fontWeight: 500 }}>
+                  <span style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--accent)', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem' }}>✓</span>
                   Cryptographic Audit Logging
                 </li>
-                <li style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'0.8rem', color:'#aaa', fontWeight:500}}>
-                  <span style={{background:'rgba(0,255,136,0.1)', color:'var(--accent)', width:'18px', height:'18px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem'}}>✓</span>
+                <li style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#aaa', fontWeight: 500 }}>
+                  <span style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--accent)', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem' }}>✓</span>
                   Sub-second Family Alerts
                 </li>
               </ul>
-              <div className="promo-avs" style={{marginBottom:'16px'}}>
-                <div className="p-av" style={{background:'var(--accent)', color:'#000'}}>A</div>
-                <div className="p-av" style={{background:'#4ade80', color:'#000'}}>B</div>
-                <div className="p-av" style={{background:'#22c55e', color:'#000'}}>C</div>
-                <div className="p-av" style={{background:'rgba(255,255,255,0.15)', color:'#ccc'}}>+5</div>
-              </div>
-              <Link to="/demo" className="promo-btn" style={{textDecoration:'none', display:'inline-block', padding:'10px 20px', fontSize:'0.9rem'}}>Run Demo</Link>
+              <Link to="/demo" className="promo-btn" style={{ textDecoration: 'none', display: 'inline-block', padding: '10px 20px', fontSize: '0.9rem' }}>Run Demo</Link>
             </div>
           </div>
 
-          {/* 4. Threat Distribution */}
           <div className="card card-bars">
             <div className="bc-header">
               <div>
-                <div className="card-title-sm" style={{margin:0}}>Threat Distribution</div>
-                <div className="bc-val">{totalIntercepted} <span className="bc-pct">↑ 8.3%</span></div>
+                <div className="card-title-sm" style={{ margin: 0 }}>Threat Distribution</div>
+                <div className="bc-val">{totalIntercepted} <span className="bc-pct">live</span></div>
               </div>
               <div className="bc-ctrl">
-                <span className="bc-select">Sort ↕</span>
-                <span className="bc-select">Week ⋁</span>
+                <span className="bc-select">DB Source</span>
+                <span className="bc-select">Audit</span>
               </div>
             </div>
             <div className="bar-chart">
-              <div className="bar-col-g"><span className="bc-amt">18</span><div className="b-fill" style={{height:'45%'}}></div><span className="bc-m">Mon</span></div>
-              <div className="bar-col-g"><span className="bc-amt">24</span><div className="b-fill" style={{height:'60%'}}></div><span className="bc-m">Tue</span></div>
-              <div className="bar-col-g"><span className="bc-amt">19</span><div className="b-fill b-warning" style={{height:'48%'}}></div><span className="bc-m">Wed</span></div>
-              <div className="bar-col-g">
-                <span className="bc-amt" style={{color:'var(--accent)'}}>31</span>
-                <div className="b-fill b-hl" style={{height:'78%'}}></div>
-                <span className="bc-m">Thu</span>
-              </div>
-              <div className="bar-col-g"><span className="bc-amt">22</span><div className="b-fill" style={{height:'55%'}}></div><span className="bc-m">Fri</span></div>
-              <div className="bar-col-g"><span className="bc-amt">16</span><div className="b-fill b-danger" style={{height:'40%'}}></div><span className="bc-m">Sat</span></div>
+              {distribution.map((item) => (
+                <div key={item.key} className="bar-col-g">
+                  <span className="bc-amt">{item.value}</span>
+                  <div
+                    className={`b-fill ${item.className}`}
+                    style={{ height: `${Math.max(4, (item.value / maxDistValue) * 100)}%` }}
+                  ></div>
+                  <span className="bc-m">{item.key}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 5. Recent Threats */}
           <div className="card card-feed">
             <div className="cf-header">
-              <div className="card-title-sm" style={{margin:0}}>Recent Threats</div>
+              <div className="card-title-sm" style={{ margin: 0 }}>Recent Threats</div>
               <Link to="/audit" className="rc-view">View All</Link>
             </div>
-            <div className="cf-body" ref={feedRef}>
+            <div className="cf-body">
+              {!loading && feedItems.length === 0 && (
+                <div className="feed-empty">No audit data yet. Trigger an intercept to start recording events.</div>
+              )}
               {feedItems.map((item, idx) => (
-                <div key={idx} className="feed-item" style={item.isLive ? {animation:'slideIn 0.4s ease', background:'rgba(0,255,136,0.05)', borderLeft:'3px solid var(--accent)', paddingLeft:'12px', borderRadius:'4px'} : {}}>
+                <div key={`${item.hash}-${idx}`} className="feed-item" style={item.isLive ? { animation: 'slideIn 0.4s ease', background: 'rgba(0,255,136,0.05)', borderLeft: '3px solid var(--accent)', paddingLeft: '12px', borderRadius: '4px' } : {}}>
                   <div className="fi-top">
                     <div className="fi-badges">
                       <div className={`fi-dot ${item.dotClass}`}></div>
@@ -313,7 +476,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="fi-title">{item.title}</div>
                   <div className="fi-btm">
-                    <div className="fi-meta">Confidence:<br/><span className="fi-val">{item.confidence}</span></div>
+                    <div className="fi-meta">Confidence:<br /><span className="fi-val">{item.confidence}</span></div>
                     <div className="fi-hash">🔐 {item.hash}</div>
                   </div>
                 </div>

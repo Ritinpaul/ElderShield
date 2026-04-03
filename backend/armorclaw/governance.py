@@ -122,6 +122,8 @@ class ArmorClaw:
             signature=signature,
             timestamp=timestamp,
             injection_detected=injection_detected,
+            source_channel=action.source_channel,
+            source_sender=action.source_sender,
         )
 
         # Step 4 — Attach signature to action

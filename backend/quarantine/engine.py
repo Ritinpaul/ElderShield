@@ -80,6 +80,8 @@ class QuarantineEngine:
                 reason="engine_error",
                 user_explanation="ElderShield encountered an issue. This message has been held for manual review by your family.",
                 family_alert_level="MEDIUM",
+                source_channel=msg.channel.value,
+                source_sender=msg.sender,
             )
 
     def _make_decision(
@@ -150,4 +152,6 @@ class QuarantineEngine:
             reason=reason,
             user_explanation=user_explanation,
             family_alert_level=alert_level,
+            source_channel=msg.channel.value,
+            source_sender=msg.sender,
         )

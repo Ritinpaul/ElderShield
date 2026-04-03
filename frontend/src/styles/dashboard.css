@@ -58,6 +58,17 @@
 /* ── Main Layout ────────────────────────────────────────── */
 .main-wrap { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 40px; }
 
+.dashboard-error {
+  margin: 18px 40px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.25);
+  color: #fca5a5;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 /* ── Header ─────────────────────────────────────────────── */
 .header {
   display: flex; justify-content: space-between; align-items: center;
@@ -223,9 +234,11 @@
 .fi-dot { width: 8px; height: 8px; border-radius: 50%; opacity: 0.8; }
 .fi-dot.red { background: #f87171; box-shadow: 0 0 10px #f87171; }
 .fi-dot.amber { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+.fi-dot.green { background: #34d399; box-shadow: 0 0 10px #34d399; }
 .fi-tag { font-size: 0.65rem; font-weight: 800; padding: 4px 8px; border-radius: 4px; letter-spacing: 0.05em; }
 .fi-tag.red { background: rgba(248,113,113,0.15); color: #f87171; }
 .fi-tag.amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.fi-tag.green { background: rgba(52,211,153,0.15); color: #34d399; }
 .fi-via { font-size: 0.8rem; color: #888; }
 .fi-time { font-size: 0.75rem; color: #888; }
 
@@ -235,6 +248,23 @@
 .fi-meta { font-size: 0.75rem; color: #777; display: flex; flex-direction: column; gap: 4px; }
 .fi-val { font-size: 0.85rem; font-weight: 700; color: #ccc; }
 .fi-hash { font-family: monospace; font-size: 0.75rem; color: #777; margin-top: 18px; }
+
+.feed-empty {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 @media (max-width: 1200px) {
   .db-content { grid-template-columns: 1fr 1fr; }

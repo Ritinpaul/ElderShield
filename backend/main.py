@@ -16,6 +16,7 @@ from backend.quarantine.engine import QuarantineEngine
 from backend.armorclaw.governance import ArmorClaw
 from backend.armorclaw import audit_log
 from backend.notifications.family_alert import format_alert
+from backend.notifications.whatsapp_sender import send_whatsapp
 
 # --- Logging setup ---
 logging.basicConfig(level=logging.INFO)
@@ -180,8 +181,17 @@ async def api_audit_log(limit: int = 20):
 
 @app.get("/api/stats")
 async def api_stats():
-    """Return standard dashboard metrics."""
+    """Return dashboard metrics derived from immutable audit records."""
+    stats = await audit_log.get_stats()
+    if stats:
+        return stats
     return await db.get_stats()
+
+
+@app.get("/api/health")
+async def api_health():
+    """Simple health probe endpoint for container orchestration."""
+    return {"status": "ok"}
 
 @app.get("/api/reputation/{phone_number}")
 async def api_reputation(phone_number: str):
@@ -201,3 +211,76 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
+
+
+# ── Demo: Real WhatsApp Attack ──────────────────────────────────────────────
+
+ATTACK_MESSAGES = {
+    "grandparent": lambda phone: (
+        f"Grandma/Grandpa, it's me! I've been arrested and need ₹75,000 bail immediately. "
+        f"Don't tell Mom or Dad. Please send to: HDFC 9876543210 IFSC: HDFC0001234. "
+        f"They'll release me in 2 hours. URGENT! 🙏"
+    ),
+    "kyc": lambda phone: (
+        f"Dear Customer, your SBI account linked to {phone} will be SUSPENDED in 24hrs "
+        f"due to incomplete KYC. Update NOW at http://sbi-kyc-update.xyz to avoid suspension. -SBI ALERT"
+    ),
+    "lottery": lambda phone: (
+        f"CONGRATULATIONS! Your number {phone} has WON ₹25,00,000 in KBC Lucky Draw 2025! "
+        f"Pay ₹5,000 processing fee to Paytm 9999888877 to claim. Expires in 48hrs."
+    ),
+    "deepfake": lambda phone: (
+        "[VOICE MESSAGE TRANSCRIPT] Hello, this is your son/daughter. I have been in a "
+        "terrible accident near the highway. The hospital needs ₹1,20,000 for emergency surgery. "
+        "Please transfer to PhonePe 8877665544 right now. I love you. Please hurry. 😢"
+    ),
+    "customs": lambda phone: (
+        f"INDIA CUSTOMS: A parcel addressed to {phone} has been seized containing foreign currency. "
+        f"To avoid prosecution under FEMA Act, pay ₹8,500 clearance fee. Call: 011-29876543 within 6 hours."
+    ),
+}
+
+
+class DemoAttackRequest(BaseModel):
+    target_phone: str
+    attack_type: str
+    channel: str = "whatsapp"
+
+
+@app.post("/api/demo/send-attack")
+async def demo_send_attack(req: DemoAttackRequest):
+    """
+    Demo endpoint: Send a REAL WhatsApp scam message via Twilio,
+    then immediately run it through the ElderShield pipeline.
+    """
+    attack_fn = ATTACK_MESSAGES.get(req.attack_type)
+    if not attack_fn:
+        return {"error": f"Unknown attack type: {req.attack_type}"}
+
+    message_body = attack_fn(req.target_phone)
+
+    # Step 1: Send real WhatsApp message via Twilio
+    whatsapp_result = await send_whatsapp(req.target_phone, message_body)
+    logger.info(f"[Demo] WhatsApp sent: status={whatsapp_result.get('status')} sid={whatsapp_result.get('sid')}")
+
+    # Step 2: Run same message through ElderShield pipeline for real classification
+    try:
+        channel_enum = Channel(req.channel.lower())
+    except ValueError:
+        channel_enum = Channel.WHATSAPP
+
+    raw = RawMessage(
+        sender=req.target_phone,
+        content=message_body,
+        audio_path=None,
+        channel=channel_enum,
+    )
+    norm_msg = await agent.intercept(raw)
+
+    return {
+        "status": "sent",
+        "message_id": norm_msg.id,
+        "whatsapp": whatsapp_result,
+        "message_preview": message_body[:120] + "...",
+        "pipeline_queued": True,
+    }
