@@ -1,0 +1,104 @@
+/* ═══════════  ARCHITECTURE — Casino Pipeline Style  ═══════════ */
+.arch-casino-wrap {
+  max-width: 1200px;
+  margin: 40px auto 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ac-pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 20px 0;
+}
+
+.ac-card {
+  flex: 1;
+  border-radius: 24px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.ac-card:hover { transform: translateY(-8px); }
+
+.ac-arrow {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; font-size: 1.5rem; color: #fff; font-weight: 800;
+  opacity: 0.6;
+}
+
+.ac-num {
+  position: absolute; top: 16px; right: 20px;
+  font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+  font-size: 2.2rem; line-height: 1; opacity: 0.3;
+}
+.ac-icon {
+  font-size: 2.8rem; margin-bottom: 20px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+.ac-name {
+  font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+  text-transform: uppercase; font-size: 1.25rem; letter-spacing: 0.02em;
+  margin-bottom: 12px; line-height: 1.1;
+}
+.ac-desc {
+  font-size: 0.85rem; line-height: 1.6; font-weight: 500;
+  margin-top: auto;
+}
+
+/* ── CARD THEMES ── */
+.ac-dark {
+  background: #18191a; color: #fff; border: 1px solid rgba(255,255,255,0.06);
+}
+.ac-dark .ac-name { color: #fff; }
+.ac-dark .ac-desc { color: #aaa; }
+.ac-dark .ac-num { color: #fff; }
+
+.ac-lime {
+  background: #ccff23; color: #000; border: 1px solid #a3cc1c;
+  z-index: 2;
+}
+.ac-lime .ac-name { color: #000; }
+.ac-lime .ac-desc { color: #222; }
+.ac-lime .ac-num { color: #000; opacity: 0.2; }
+
+.ac-purple {
+  background: #9d50ff; color: #fff; border: 1px solid #813ed6;
+  z-index: 2;
+}
+.ac-purple .ac-name { color: #fff; }
+.ac-purple .ac-desc { color: rgba(255,255,255,0.9); }
+.ac-purple .ac-num { color: #fff; }
+
+/* Trust Contract */
+.ac-bento {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+  margin-top: 60px;
+}
+.ac-bento-card {
+  background: #18191a; border-radius: 24px; padding: 36px 40px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.ac-bento-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 900;
+  text-transform: uppercase; font-size: 1.4rem; letter-spacing: 0.05em;
+  margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+}
+.ac-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.ac-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.9rem; color: #aaa; }
+.ac-list li span { font-size: 1.2rem; line-height: 1; margin-top:2px; }
+
+.ac-can-title { color: #ccff23; }
+.ac-cannot-title { color: #ff4a4a; }
+
+@media (max-width: 1024px) {
+  .ac-pipeline { flex-direction: column; }
+  .ac-arrow { width: 100%; height: 40px; transform: rotate(90deg); }
+  .ac-card { min-height: 180px; }
+  .ac-bento { grid-template-columns: 1fr; }
+}

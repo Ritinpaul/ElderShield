@@ -42,6 +42,10 @@ htmlcov/
 test_out.txt
 tests/phase2_output.txt
 
+# Node.js / React
+node_modules/
+frontend/dist/
+
 # OS
 .DS_Store
 Thumbs.db

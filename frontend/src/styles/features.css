@@ -1,0 +1,171 @@
+/* ═══════════  FEATURES — Creative Agency Style  ═══════════ */
+
+.f-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 52px 0 40px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 36px; gap: 24px; flex-wrap: wrap;
+}
+.f-header h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; }
+.f-header-desc { max-width: 360px; font-size: 0.88rem; color: #888; line-height: 1.7; text-align: right; }
+
+/* Grid */
+.f-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-bottom: 56px;
+}
+
+/* Card */
+.fc {
+  border-radius: 20px;
+  padding: 28px 26px 0;
+  display: flex; flex-direction: column;
+  min-height: 380px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+.fc:hover { transform: translateY(-4px); }
+
+/* Arrow */
+.fc-arrow {
+  position: absolute; top: 22px; right: 22px;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; cursor: pointer;
+  transition: transform 0.25s ease;
+}
+.fc:hover .fc-arrow { transform: translate(2px, -2px); }
+
+/* Title */
+.fc-title {
+  font-size: 1.7rem; font-weight: 800; line-height: 1.15;
+  margin-bottom: 12px; max-width: 220px;
+}
+
+/* Description */
+.fc-desc {
+  font-size: 0.82rem; line-height: 1.65;
+  margin-bottom: 20px;
+}
+
+/* Visual Block (bottom of card) */
+.fc-visual {
+  margin-top: auto;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  height: 140px;
+  position: relative;
+  margin-left: -26px; margin-right: -26px;
+}
+.fc-visual-inner {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 24px;
+}
+
+/* Stats in visual */
+.fc-stats { display: flex; gap: 28px; text-align: center; }
+.fc-stat-num { font-size: 1.5rem; font-weight: 800; }
+.fc-stat-lbl { font-size: 0.6rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px; }
+
+/* Code snippet in visual */
+.fc-code {
+  font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.7;
+  color: rgba(255,255,255,0.5); width: 100%; white-space: pre;
+}
+.fc-code .ck { color: #00ff88; }
+.fc-code .cv { color: #a78bfa; }
+.fc-code .cr { color: #fca5a5; }
+
+/* Channel pills in visual */
+.fc-channels { display: flex; gap: 8px; flex-wrap: wrap; }
+.fc-ch {
+  padding: 8px 16px; border-radius: 10px;
+  font-size: 0.72rem; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ── DARK card ────────────────────────────────────── */
+.fc-dark {
+  background: #141414;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.fc-dark .fc-title { color: #e5e5e5; }
+.fc-dark .fc-desc { color: #777; }
+.fc-dark .fc-arrow { background: #222; color: #aaa; }
+.fc-dark .fc-visual-inner { background: #0c0c0c; }
+.fc-dark .fc-ch { background: #1a1a1a; color: #999; }
+
+/* ── GREEN card ───────────────────────────────────── */
+.fc-green {
+  background: linear-gradient(165deg, #0b4d2a 0%, #073d1f 40%, #052e16 100%);
+  border: 1px solid rgba(0,255,136,0.12);
+}
+.fc-green .fc-title { color: var(--accent); }
+.fc-green .fc-desc { color: #6db88c; }
+.fc-green .fc-arrow { background: var(--accent); color: #000; }
+.fc-green .fc-visual-inner { background: rgba(0,0,0,0.25); }
+.fc-green .fc-ch { background: rgba(0,255,136,0.1); color: var(--accent); border-color: rgba(0,255,136,0.15); }
+
+/* ── PURPLE card ──────────────────────────────────── */
+.fc-purple {
+  background: linear-gradient(165deg, #3b1a8a 0%, #2a1270 40%, #1e0c55 100%);
+  border: 1px solid rgba(139,92,246,0.2);
+}
+.fc-purple .fc-title { color: #e0d4ff; }
+.fc-purple .fc-desc { color: #a694d4; }
+.fc-purple .fc-arrow { background: #a78bfa; color: #000; }
+.fc-purple .fc-visual-inner { background: rgba(0,0,0,0.2); }
+
+/* ── RED card ─────────────────────────────────────── */
+.fc-red {
+  background: linear-gradient(165deg, #5c1a1a 0%, #451212 40%, #330d0d 100%);
+  border: 1px solid rgba(248,113,113,0.12);
+}
+.fc-red .fc-title { color: #fca5a5; }
+.fc-red .fc-desc { color: #a07070; }
+.fc-red .fc-arrow { background: #f87171; color: #000; }
+.fc-red .fc-visual-inner { background: rgba(0,0,0,0.2); }
+
+/* ── AMBER card ───────────────────────────────────── */
+.fc-amber {
+  background: linear-gradient(165deg, #5c3b0a 0%, #453006 40%, #332304 100%);
+  border: 1px solid rgba(251,191,36,0.12);
+}
+.fc-amber .fc-title { color: #fde68a; }
+.fc-amber .fc-desc { color: #a0905b; }
+.fc-amber .fc-arrow { background: #fbbf24; color: #000; }
+.fc-amber .fc-visual-inner { background: rgba(0,0,0,0.2); }
+
+/* ── TEAL card ────────────────────────────────────── */
+.fc-teal {
+  background: linear-gradient(165deg, #0a4050 0%, #063040 40%, #042030 100%);
+  border: 1px solid rgba(34,211,238,0.12);
+}
+.fc-teal .fc-title { color: #67e8f9; }
+.fc-teal .fc-desc { color: #5b8e9b; }
+.fc-teal .fc-arrow { background: #22d3ee; color: #000; }
+.fc-teal .fc-visual-inner { background: rgba(0,0,0,0.2); }
+
+/* Wide */
+.fc-wide { grid-column: span 2; }
+.fc-wide .fc-title { max-width: 400px; }
+
+/* Bottom CTA */
+.f-cta { text-align: center; padding: 20px 0 60px; }
+
+/* Responsive */
+@media (max-width:1024px) {
+  .f-grid { grid-template-columns: repeat(2, 1fr); }
+  .fc-wide { grid-column: span 2; }
+  .f-header { flex-direction: column; align-items: flex-start; }
+  .f-header-desc { text-align: left; }
+}
+@media (max-width:768px) {
+  .f-grid { grid-template-columns: 1fr; }
+  .fc-wide { grid-column: span 1; }
+  .f-header h1 { font-size: 1.8rem; }
+  .fc { min-height: 320px; }
+}
